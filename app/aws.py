@@ -1,6 +1,7 @@
 import json
 from functools import lru_cache
 import boto3
+from botocore.config import Config
 from app.config import settings
 from app.observability import trace
 
@@ -18,6 +19,11 @@ def client(service):
         options.update(aws_access_key_id=s.aws_access_key_id,
                        aws_secret_access_key=s.aws_secret_access_key)
 
+    if service == 's3':
+        # SigV4 + regional virtual-hosted endpoint: presigned URLs must not redirect,
+        # because a browser PUT that hits a 301/307 fails the CORS check.
+        options.update(config=Config(signature_version='s3v4', s3={'addressing_style': 'virtual'}),
+                       endpoint_url=f'https://s3.{s.aws_region}.amazonaws.com')
     return boto3.client(service, **options)
 
 
